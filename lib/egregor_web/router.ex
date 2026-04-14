@@ -9,6 +9,7 @@ defmodule EgregorWeb.Router do
   # Health check — no pipeline, no auth, Flutter connectivity probe
   scope "/api", EgregorWeb do
     get "/health", HealthController, :check
+    get "/debug", HealthController, :debug
   end
 
   scope "/api", EgregorWeb do
