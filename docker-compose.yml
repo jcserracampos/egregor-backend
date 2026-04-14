@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: egregor_dev
+    ports:
+      - "5434:5432"   # 5434 externally to avoid conflict with a local postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "ecto://postgres:postgres@db/egregor_dev"
+      PORT: "4000"
+      MIX_ENV: "dev"
+      PHX_BIND_IP: "0.0.0.0"
+      # Set your OpenRouter key here or in a .env file
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+    env_file:
+      - path: .env
+        required: false   # .env is optional; falls back to environment above
+    ports:
+      - "4001:4000"   # 4001 externally; container always listens on 4000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount source for live reload inside the container
+      - ./lib:/app/lib
+      - ./priv:/app/priv
+      - ./config:/app/config
+      - ./test:/app/test
+
+volumes:
+  pgdata:
