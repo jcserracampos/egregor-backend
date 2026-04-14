@@ -1,9 +1,21 @@
 #!/bin/sh
 set -e
 
-# Wait for Postgres to be ready
-until /app/bin/egregor eval "Egregor.Repo.query!(\"SELECT 1\")" > /dev/null 2>&1; do
-  echo "Waiting for database..."
+# Extract host and port from DATABASE_URL for fast TCP-level wait
+# DATABASE_URL format: ecto://USER:PASS@HOST:PORT/DB  or  postgres://...
+db_host_port=$(printf '%s' "$DATABASE_URL" | sed -E 's|^[a-z]+://[^@]+@([^/]+)/.*|\1|')
+db_host=$(printf '%s' "$db_host_port" | cut -d: -f1)
+db_port=$(printf '%s' "$db_host_port" | cut -d: -f2)
+[ -z "$db_port" ] && db_port=5432
+
+echo "Waiting for database at ${db_host}:${db_port}..."
+tries=0
+until pg_isready -h "$db_host" -p "$db_port" -q; do
+  tries=$((tries + 1))
+  if [ $tries -ge 60 ]; then
+    echo "Database never became ready after 60 attempts. Aborting."
+    exit 1
+  fi
   sleep 2
 done
 
