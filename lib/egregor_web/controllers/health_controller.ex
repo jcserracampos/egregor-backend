@@ -65,7 +65,7 @@ defmodule EgregorWeb.HealthController do
     json(conn, %{
       openrouter_configured: not is_nil(openrouter),
       openrouter_key_present: not is_nil(openrouter && openrouter[:api_key]),
-      models: Application.get_env(:egregor, :models),
+      models: (Application.get_env(:egregor, :models) || []) |> Map.new(),
       oban_categorization_queue: inspect(oban_running),
       queue_counts: queue_counts,
       recent_jobs: recent_jobs,
