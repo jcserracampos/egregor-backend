@@ -10,6 +10,7 @@ defmodule EgregorWeb.Router do
   scope "/api", EgregorWeb do
     get "/health", HealthController, :check
     get "/debug", HealthController, :debug
+    post "/debug/recategorize", HealthController, :recategorize
   end
 
   scope "/api", EgregorWeb do
@@ -18,7 +19,7 @@ defmodule EgregorWeb.Router do
     # Entries — core capture and retrieval
     post "/entries/audio", EntryController, :create_audio
     patch "/entries/:id/transmute", EntryController, :transmute
-    resources "/entries", EntryController, only: [:index, :create, :show, :update]
+    resources "/entries", EntryController, only: [:index, :create, :show, :update, :delete]
 
     # Categories — dashboard data
     get "/categories", CategoryController, :index

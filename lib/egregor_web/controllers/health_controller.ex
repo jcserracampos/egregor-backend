@@ -3,9 +3,32 @@ defmodule EgregorWeb.HealthController do
 
   import Ecto.Query
   alias Egregor.Repo
+  alias Egregor.Entries.Entry
+  alias Egregor.Jobs.CategorizeEntryJob
 
   def check(conn, _params) do
     json(conn, %{status: "ok", timestamp: DateTime.utc_now() |> DateTime.to_iso8601()})
+  end
+
+  def recategorize(conn, _params) do
+    entries =
+      from(e in Entry,
+        where: fragment("coalesce(array_length(?, 1), 0) = 0", e.categories),
+        select: e.id
+      )
+      |> Repo.all()
+
+    enqueued =
+      Enum.map(entries, fn id ->
+        {:ok, _} =
+          %{"entry_id" => id}
+          |> CategorizeEntryJob.new()
+          |> Oban.insert()
+
+        id
+      end)
+
+    json(conn, %{enqueued: length(enqueued), ids: enqueued})
   end
 
   def debug(conn, _params) do

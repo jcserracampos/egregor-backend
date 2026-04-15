@@ -128,6 +128,12 @@ defmodule EgregorWeb.EntryController do
     json(conn, %{data: serialize(entry)})
   end
 
+  def delete(conn, %{"id" => id}) do
+    entry = Entries.get_entry!(id)
+    {:ok, _} = Egregor.Repo.delete(entry)
+    send_resp(conn, :no_content, "")
+  end
+
   def update(conn, %{"id" => id} = params) do
     entry = Entries.get_entry!(id)
 
