@@ -2,6 +2,7 @@ defmodule EgregorWeb.EntryController do
   use EgregorWeb, :controller
 
   alias Egregor.Entries
+  alias Egregor.Filaments
   alias Egregor.Agents.OpenRouter
   alias Egregor.Jobs.{TranscribeAudioJob, TransmutationJob}
 
@@ -21,6 +22,7 @@ defmodule EgregorWeb.EntryController do
     opts = [
       category: params["category"],
       intention: params["intention"] == "true",
+      resurgence_pending: params["resurgence_pending"] == "true",
       limit: parse_limit(params["limit"])
     ]
 
@@ -128,6 +130,41 @@ defmodule EgregorWeb.EntryController do
     json(conn, %{data: serialize(entry)})
   end
 
+  def mark_resurgence(conn, %{"id" => id, "pending" => pending}) do
+    entry = Entries.get_entry!(id)
+
+    result =
+      if pending do
+        Filaments.mark_resurgence(entry)
+      else
+        Filaments.unmark_resurgence(entry)
+      end
+
+    case result do
+      {:ok, updated} ->
+        json(conn, %{data: serialize(updated)})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: format_errors(changeset)})
+    end
+  end
+
+  def resurgence_candidates(conn, %{"id" => id} = params) do
+    entry = Entries.get_entry!(id)
+    limit = params["limit"] |> parse_limit() || 5
+
+    candidates = Filaments.resurgence_candidates(entry, limit)
+
+    data =
+      Enum.map(candidates, fn %{entry: candidate, similarity: sim} ->
+        %{entry: serialize(candidate), similarity: sim}
+      end)
+
+    json(conn, %{data: data})
+  end
+
   def delete(conn, %{"id" => id}) do
     entry = Entries.get_entry!(id)
     {:ok, _} = Egregor.Repo.delete(entry)
@@ -166,6 +203,9 @@ defmodule EgregorWeb.EntryController do
       summary: entry.summary,
       transmuted_at: entry.transmuted_at,
       transmutation_note: entry.transmutation_note,
+      filament_id: entry.filament_id,
+      filament_position: entry.filament_position,
+      resurgence_pending: entry.resurgence_pending,
       inserted_at: entry.inserted_at,
       updated_at: entry.updated_at
     }

@@ -10,6 +10,7 @@ defmodule Egregor.Entries do
     base
     |> maybe_filter_category(opts[:category])
     |> maybe_filter_intention(opts[:intention])
+    |> maybe_filter_resurgence_pending(opts[:resurgence_pending])
     |> maybe_limit(opts[:limit])
     |> Repo.all()
   end
@@ -145,6 +146,12 @@ defmodule Egregor.Entries do
 
   defp maybe_filter_intention(query, true), do: where(query, [e], e.is_intention == true)
   defp maybe_filter_intention(query, _), do: query
+
+  defp maybe_filter_resurgence_pending(query, true) do
+    where(query, [e], e.resurgence_pending == true and is_nil(e.filament_id))
+  end
+
+  defp maybe_filter_resurgence_pending(query, _), do: query
 
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, limit), do: limit(query, ^limit)

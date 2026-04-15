@@ -19,6 +19,11 @@ defmodule Egregor.Entries.Entry do
     field :summary, :string
     field :transmuted_at, :utc_datetime
     field :transmutation_note, :string
+    field :filament_position, :integer
+    field :resurgence_pending, :boolean, default: false
+    field :resurgence_marked_at, :utc_datetime
+
+    belongs_to :filament, Egregor.Filaments.Filament
 
     timestamps(type: :utc_datetime)
   end
@@ -62,5 +67,13 @@ defmodule Egregor.Entries.Entry do
     entry
     |> cast(attrs, [:transmuted_at, :transmutation_note])
     |> validate_required([:transmuted_at])
+  end
+
+  def resurgence_changeset(entry, attrs) do
+    cast(entry, attrs, [:resurgence_pending, :resurgence_marked_at])
+  end
+
+  def filament_link_changeset(entry, attrs) do
+    cast(entry, attrs, [:filament_id, :filament_position, :resurgence_pending])
   end
 end

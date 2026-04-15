@@ -59,7 +59,8 @@ config :egregor, :models,
   phrase: "google/gemini-2.0-flash-lite-001",
   convergent: "google/gemini-2.0-flash-lite-001",
   narrator: "anthropic/claude-sonnet-4-5",
-  scribe: "openai/whisper-large-v3"
+  scribe: "openai/whisper-large-v3",
+  filament_namer: "google/gemini-2.0-flash-lite-001"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -4,6 +4,7 @@ defmodule Egregor.Jobs.DetectConvergenceJob do
   import Ecto.Query
   alias Egregor.Repo
   alias Egregor.Entries.Entry
+  alias Egregor.Filaments.Filament
   alias Egregor.Agents.Convergent
 
   @similarity_threshold 0.75
@@ -24,56 +25,63 @@ defmodule Egregor.Jobs.DetectConvergenceJob do
     :ok
   end
 
+  # Each "node" in pairs is either {:entry, %Entry{}} or {:filament, filament_id}.
+  # The build_clusters/process_cluster pipeline uses the raw id string as the
+  # union-find key. process_cluster expands filament nodes into their entries before
+  # calling the LLM (Convergent only sees Entry structs).
+  #
+  # We keep the old entry-only path as well so existing tests aren't affected.
+
   # ---------------------------------------------------------------------------
-  # Cluster detection: union-find (path compression) over entry pairs
+  # Cluster detection: union-find (path compression) over unit pairs.
+  # A "unit" is either an Entry struct or a filament_id string (prefixed "f:").
   # ---------------------------------------------------------------------------
 
   # Returns a list of clusters, where each cluster is a list of Entry structs.
-  # Clusters with 2+ semantically related entries from distinct categories.
   defp build_clusters(pairs) do
-    # Build adjacency: {entry_a, entry_b, similarity}
-    # Union-find via a map of id -> canonical_id
     parent = build_union_find(pairs)
 
-    # Group entries by their canonical root
-    entry_by_id =
+    unit_by_id =
       pairs
-      |> Enum.flat_map(fn {e1, e2, _sim} -> [{e1.id, e1}, {e2.id, e2}] end)
+      |> Enum.flat_map(fn {u1_id, u1, u2_id, u2, _sim} ->
+        [{u1_id, u1}, {u2_id, u2}]
+      end)
       |> Map.new()
 
     groups =
-      entry_by_id
+      unit_by_id
       |> Map.keys()
       |> Enum.group_by(fn id -> find_root(parent, id) end)
 
-    # Return clusters of 2+ entries, capped at @max_cluster_size
     groups
     |> Map.values()
     |> Enum.filter(fn ids -> length(ids) >= 2 end)
     |> Enum.map(fn ids ->
       ids
       |> Enum.take(@max_cluster_size)
-      |> Enum.map(&Map.fetch!(entry_by_id, &1))
+      |> Enum.flat_map(fn id ->
+        case Map.fetch!(unit_by_id, id) do
+          %Entry{} = entry -> [entry]
+          {:filament, filament_id} -> expand_filament(filament_id)
+        end
+      end)
     end)
   end
 
   defp build_union_find(pairs) do
-    # Initialize: each node is its own root
     initial =
       pairs
-      |> Enum.flat_map(fn {e1, e2, _} -> [e1.id, e2.id] end)
+      |> Enum.flat_map(fn {id1, _, id2, _, _} -> [id1, id2] end)
       |> Enum.uniq()
       |> Map.new(&{&1, &1})
 
-    # Union each pair
-    Enum.reduce(pairs, initial, fn {e1, e2, _sim}, parent ->
-      root1 = find_root(parent, e1.id)
-      root2 = find_root(parent, e2.id)
+    Enum.reduce(pairs, initial, fn {id1, _, id2, _, _sim}, parent ->
+      root1 = find_root(parent, id1)
+      root2 = find_root(parent, id2)
 
       if root1 == root2 do
         parent
       else
-        # Merge: root1 points to root2
         Map.put(parent, root1, root2)
       end
     end)
@@ -84,6 +92,13 @@ defmodule Egregor.Jobs.DetectConvergenceJob do
       ^id -> id
       parent_id -> find_root(parent, parent_id)
     end
+  end
+
+  # Expand filament into its constituent entries for LLM analysis.
+  defp expand_filament(filament_id) do
+    Egregor.Filaments.get_filament_with_entries(filament_id).entries
+  rescue
+    Ecto.NoResultsError -> []
   end
 
   # ---------------------------------------------------------------------------
@@ -108,19 +123,37 @@ defmodule Egregor.Jobs.DetectConvergenceJob do
   end
 
   # ---------------------------------------------------------------------------
-  # pgvector-native query — O(n²) similarity comparison in PostgreSQL,
-  # leveraging the ivfflat index for performance.
+  # pgvector-native query over "units":
+  #   - orphan entries (no filament, not transmuted, with embedding, within window)
+  #   - filaments with centroid (active within window)
+  #
+  # Each row in the result is {unit_id, unit_value, unit_id2, unit_value2, similarity}
+  # where unit_value is either an Entry struct or {:filament, id}.
+  #
+  # Category-exclusion filter applies only between two entries (filaments are
+  # inherently cross-category). Uses raw SQL via fragment for the UNION query.
   # ---------------------------------------------------------------------------
 
   defp fetch_semantic_pairs do
     cutoff = DateTime.add(DateTime.utc_now(), -@days_window * 24 * 3600, :second)
 
+    entry_pairs = fetch_entry_entry_pairs(cutoff)
+    filament_pairs = fetch_filament_pairs(cutoff)
+
+    (entry_pairs ++ filament_pairs)
+    |> Enum.sort_by(fn {_, _, _, _, sim} -> -sim end)
+    |> Enum.take(@max_pairs)
+  end
+
+  defp fetch_entry_entry_pairs(cutoff) do
     Repo.all(
       from e1 in Entry,
         join: e2 in Entry,
         on: e1.id < e2.id,
         where:
-          e1.inserted_at > ^cutoff and
+          is_nil(e1.filament_id) and
+            is_nil(e2.filament_id) and
+            e1.inserted_at > ^cutoff and
             e2.inserted_at > ^cutoff and
             not is_nil(e1.embedding) and
             not is_nil(e2.embedding) and
@@ -137,10 +170,50 @@ defmodule Egregor.Jobs.DetectConvergenceJob do
         order_by: fragment("? <=> ?", e1.embedding, e2.embedding),
         limit: ^@max_pairs,
         select: {
+          e1.id,
           e1,
+          e2.id,
           e2,
           fragment("1 - (? <=> ?)", e1.embedding, e2.embedding)
         }
     )
+    |> Enum.map(fn {id1, e1, id2, e2, sim} -> {id1, e1, id2, e2, sim} end)
+  end
+
+  defp fetch_filament_pairs(cutoff) do
+    # Orphan entries near a filament centroid.
+    # Key for the filament node is "filament:<uuid>" — consistent so that multiple
+    # entries near the same filament get unioned into one cluster.
+    Repo.all(
+      from e in Entry,
+        join: f in Filament,
+        on: true,
+        where:
+          is_nil(e.filament_id) and
+            e.inserted_at > ^cutoff and
+            not is_nil(e.embedding) and
+            is_nil(e.transmuted_at) and
+            not is_nil(f.centroid_embedding) and
+            f.last_linked_at > ^cutoff,
+        where:
+          fragment(
+            "1 - (? <=> ?) > ?",
+            e.embedding,
+            f.centroid_embedding,
+            ^@similarity_threshold
+          ),
+        order_by: fragment("? <=> ?", e.embedding, f.centroid_embedding),
+        limit: ^div(@max_pairs, 2),
+        select: {
+          e.id,
+          e,
+          f.id,
+          fragment("1 - (? <=> ?)", e.embedding, f.centroid_embedding)
+        }
+    )
+    |> Enum.map(fn {eid, entry, fid, sim} ->
+      filament_key = "filament:#{fid}"
+      {eid, entry, filament_key, {:filament, fid}, sim}
+    end)
   end
 end

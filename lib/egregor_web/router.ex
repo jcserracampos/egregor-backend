@@ -19,7 +19,13 @@ defmodule EgregorWeb.Router do
     # Entries — core capture and retrieval
     post "/entries/audio", EntryController, :create_audio
     patch "/entries/:id/transmute", EntryController, :transmute
+    patch "/entries/:id/mark_resurgence", EntryController, :mark_resurgence
+    get "/entries/:id/resurgence_candidates", EntryController, :resurgence_candidates
     resources "/entries", EntryController, only: [:index, :create, :show, :update, :delete]
+
+    # Filaments — manual idea chains
+    post "/filaments/:id/entries", FilamentController, :add_entry
+    resources "/filaments", FilamentController, only: [:index, :show, :create]
 
     # Categories — dashboard data
     get "/categories", CategoryController, :index

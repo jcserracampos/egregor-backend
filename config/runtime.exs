@@ -56,7 +56,8 @@ config :egregor, :models,
   phrase: System.get_env("PHRASE_MODEL", "google/gemini-2.0-flash-lite-001"),
   convergent: System.get_env("CONVERGENT_MODEL", "google/gemini-2.0-flash-lite-001"),
   narrator: System.get_env("NARRATOR_MODEL", "anthropic/claude-sonnet-4-5"),
-  scribe: System.get_env("SCRIBE_MODEL", "openai/whisper-large-v3")
+  scribe: System.get_env("SCRIBE_MODEL", "openai/whisper-large-v3"),
+  filament_namer: System.get_env("FILAMENT_NAMER_MODEL", "google/gemini-2.0-flash-lite-001")
 
 # DATABASE_URL overrides dev.exs when running in Docker or any env that sets it
 if database_url = System.get_env("DATABASE_URL") do
