@@ -1,16 +1,10 @@
 import Config
 
-# Force using SSL in production. This also sets the "strict-security-transport" header,
-# known as HSTS. If you have a health check endpoint, you may want to exclude it below.
-# Note `:force_ssl` is required to be set at compile-time.
-config :egregor, EgregorWeb.Endpoint,
-  force_ssl: [
-    rewrite_on: [:x_forwarded_proto],
-    exclude: [
-      # paths: ["/health"],
-      hosts: ["localhost", "127.0.0.1"]
-    ]
-  ]
+# HTTPS is enforced by the Coolify reverse proxy (Traefik), which also sets
+# Strict-Transport-Security. We don't enable Plug.SSL/force_ssl here because
+# it would issue 301 redirects on any request carrying `Upgrade: websocket`
+# (the proxy doesn't forward X-Forwarded-Proto on WS upgrades), breaking
+# Phoenix Channels.
 
 # Do not print debug messages in production
 config :logger, level: :info
