@@ -2,7 +2,6 @@ defmodule EgregorWeb.Router do
   use EgregorWeb, :router
 
   pipeline :api do
-    plug CORSPlug, origin: "*"
     plug :accepts, ["json"]
   end
 
