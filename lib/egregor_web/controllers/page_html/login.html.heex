@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Egrégor · Acesso</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href={~p"/css/web.css"} />
+  </head>
+  <body>
+    <div class="login-page">
+      <div class="login-card">
+        <div class="login-card__glyph">⬡</div>
+        <div>
+          <div class="login-card__title">Egrégor</div>
+          <div class="login-card__subtitle">Solve et Coagula</div>
+        </div>
+
+        <form method="POST" action={~p"/web/login"} class="login-form">
+          <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+          <input
+            type="password"
+            name="passkey"
+            placeholder="passkey"
+            autocomplete="current-password"
+            autofocus
+            class="login-form__input"
+          />
+          <%= if @error do %>
+            <div class="login-form__error"><%= @error %></div>
+          <% end %>
+          <button type="submit" class="login-form__btn">Entrar</button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

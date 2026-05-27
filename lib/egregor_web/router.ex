@@ -5,6 +5,19 @@ defmodule EgregorWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, html: {EgregorWeb.Layouts, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+  end
+
+  pipeline :auth do
+    plug EgregorWeb.Plugs.RequirePasskey
+  end
+
   # Health check — no pipeline, no auth, Flutter connectivity probe
   scope "/api", EgregorWeb do
     get "/health", HealthController, :check
@@ -42,5 +55,24 @@ defmodule EgregorWeb.Router do
 
     # Milestones
     get "/milestones", MilestoneController, :index
+  end
+
+  # Web interface — public (login)
+  scope "/web", EgregorWeb do
+    pipe_through :browser
+
+    get "/login", PageController, :login
+    post "/login", PageController, :authenticate
+    delete "/logout", PageController, :logout
+  end
+
+  # Web interface — protected
+  scope "/web", EgregorWeb do
+    pipe_through [:browser, :auth]
+
+    live "/", DashboardLive, :index
+    live "/capture", CaptureLive, :index
+    live "/oracle", OracleLive, :index
+    live "/review", ReviewLive, :index
   end
 end
