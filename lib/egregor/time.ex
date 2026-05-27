@@ -66,7 +66,38 @@ defmodule Egregor.Time do
     "#{now.year}-#{pad(now.month)}-#{pad(now.day)}-#{pad(now.hour)}"
   end
 
+  @doc """
+  Human-readable local timestamp with period label, in pt-BR.
+
+  Example: `"terça-feira, 27/05 03h12 (madrugada)"`. Gives the Oracle temporal
+  context so it can reason about *when* the user is reaching out.
+  """
+  @spec current_time_label() :: String.t()
+  def current_time_label do
+    now = local_now()
+
+    "#{weekday_pt(now)}, #{pad(now.day)}/#{pad(now.month)} #{pad(now.hour)}h#{pad(now.minute)} (#{period_pt()})"
+  end
+
   # ---------------------------------------------------------------------------
+
+  @period_labels %{morning: "manhã", afternoon: "tarde", evening: "noite", night: "madrugada"}
+
+  @weekdays_pt %{
+    1 => "segunda-feira",
+    2 => "terça-feira",
+    3 => "quarta-feira",
+    4 => "quinta-feira",
+    5 => "sexta-feira",
+    6 => "sábado",
+    7 => "domingo"
+  }
+
+  defp period_pt, do: @period_labels[period()]
+
+  defp weekday_pt(datetime) do
+    @weekdays_pt[Date.day_of_week(DateTime.to_date(datetime))]
+  end
 
   defp tz_offset_hours do
     Application.get_env(:egregor, :tz_offset_hours, -3)

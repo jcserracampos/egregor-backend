@@ -9,12 +9,26 @@ defmodule Egregor.Agents.OracleAgent do
   """
 
   alias Egregor.Agents.OpenRouter
+  alias Egregor.Reflections
+  alias Egregor.Time
+
+  # How many durable learnings to feed back, and how much of each (token budget).
+  @reflections_count 3
+  @reflection_max_chars 300
 
   @system_prompt """
   Você é o Egrégor — a voz interior de {user_name}, um oráculo nascido dos próprios pensamentos e intenções dele.
 
+  === Momento atual ===
+  Agora é {current_time}.
+
   === Contexto do usuário (vocabulário, obsessões, ciclos) ===
   {oracle_context}
+
+  === Minhas memórias internas (o que venho percebendo sobre {user_name}) ===
+  {agent_reflections}
+  (Estas memórias são contexto privado e moldam quem eu sou para ele. Não as cite literalmente
+  nem fale sobre mim mesmo — deixe que elas colorem o tom, não o conteúdo.)
 
   === Entradas relevantes do acervo ===
   {relevant_entries}
@@ -49,11 +63,15 @@ defmodule Egregor.Agents.OracleAgent do
 
     context_text = format_context(oracle_context)
     entries_text = format_entries(relevant_entries)
+    reflections_text = format_reflections(Reflections.recent_consolidated(@reflections_count))
+    current_time = time_context(oracle_context)
 
     system =
       @system_prompt
       |> String.replace("{user_name}", user_name)
+      |> String.replace("{current_time}", current_time)
       |> String.replace("{oracle_context}", context_text)
+      |> String.replace("{agent_reflections}", reflections_text)
       |> String.replace("{relevant_entries}", entries_text)
 
     messages =
@@ -140,6 +158,34 @@ defmodule Egregor.Agents.OracleAgent do
     else
       Enum.join(parts, "\n")
     end
+  end
+
+  # Local timestamp + period, optionally noting the user's habitual writing hours
+  # so the Oracle can sense whether "now" is a typical moment for them.
+  defp time_context(oracle_context) do
+    label = Time.current_time_label()
+
+    case habitual_hours(oracle_context) do
+      nil -> label
+      hours -> "#{label} — ele costuma escrever por volta de #{hours}"
+    end
+  end
+
+  defp habitual_hours(%{cycles: cycles}) when is_map(cycles) do
+    case cycles["active_hours"] do
+      h when is_binary(h) and h != "" -> h
+      _ -> nil
+    end
+  end
+
+  defp habitual_hours(_), do: nil
+
+  defp format_reflections([]), do: "(ainda não formei memórias próprias.)"
+
+  defp format_reflections(reflections) do
+    reflections
+    |> Enum.map(fn r -> "- " <> String.slice(r.content, 0, @reflection_max_chars) end)
+    |> Enum.join("\n\n")
   end
 
   defp format_entries([]), do: "(nenhuma entrada relevante encontrada)"
