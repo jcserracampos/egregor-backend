@@ -12,9 +12,7 @@ defmodule Egregor.Repo.Migrations.CreateChatMessages do
       timestamps(type: :utc_datetime, updated_at: false)
     end
 
-    create constraint(:chat_messages, :role_values,
-             check: "role IN ('user', 'assistant')"
-           )
+    create constraint(:chat_messages, :role_values, check: "role IN ('user', 'assistant')")
 
     create index(:chat_messages, [:inserted_at])
   end

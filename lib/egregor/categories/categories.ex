@@ -95,7 +95,9 @@ defmodule Egregor.Categories do
         b = String.slice(hash, 4, 2)
         color = "##{r}#{g}#{b}"
         # Slightly lighter for glow
-        glow = "##{String.slice(hash, 6, 2)}#{String.slice(hash, 8, 2)}#{String.slice(hash, 10, 2)}"
+        glow =
+          "##{String.slice(hash, 6, 2)}#{String.slice(hash, 8, 2)}#{String.slice(hash, 10, 2)}"
+
         {color, glow}
     end
   end

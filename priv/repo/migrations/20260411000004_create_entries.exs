@@ -19,9 +19,7 @@ defmodule Egregor.Repo.Migrations.CreateEntries do
       timestamps(type: :utc_datetime)
     end
 
-    create constraint(:entries, :urgency_values,
-             check: "urgency IN ('low', 'med', 'high')"
-           )
+    create constraint(:entries, :urgency_values, check: "urgency IN ('low', 'med', 'high')")
 
     create index(:entries, [:inserted_at])
     create index(:entries, [:categories], using: :gin)

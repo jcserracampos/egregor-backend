@@ -167,6 +167,7 @@ defmodule EgregorWeb.CaptureLive do
   defp format_seconds(s) do
     m = div(s, 60)
     sec = rem(s, 60)
+
     "#{String.pad_leading(Integer.to_string(m), 2, "0")}:#{String.pad_leading(Integer.to_string(sec), 2, "0")}"
   end
 

@@ -72,7 +72,10 @@ defmodule Egregor.Filaments do
 
   def resurgence_candidates(%Entry{embedding: nil}, _limit), do: []
 
-  def resurgence_candidates(%Entry{id: entry_id, embedding: embedding, filament_id: filament_id}, limit) do
+  def resurgence_candidates(
+        %Entry{id: entry_id, embedding: embedding, filament_id: filament_id},
+        limit
+      ) do
     vector = embedding
 
     from(e in Entry,
