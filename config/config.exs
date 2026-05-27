@@ -47,7 +47,12 @@ config :egregor, Oban,
        # 03h BRT (UTC-3) = 06h UTC
        {"0 6 * * *", Egregor.Jobs.DetectConvergenceJob},
        # 04h BRT (UTC-3) = 07h UTC
-       {"0 7 * * *", Egregor.Jobs.UpdateOracleContextJob}
+       {"0 7 * * *", Egregor.Jobs.UpdateOracleContextJob},
+       # Heartbeat: a raw private observation every 4h (UTC)
+       {"0 */4 * * *", Egregor.Jobs.ReflectionPulseJob},
+       # 04h30 BRT (UTC-3) = 07h30 UTC — right after the oracle_context update,
+       # so consolidation reasons over a fresh user profile
+       {"30 7 * * *", Egregor.Jobs.ConsolidateReflectionsJob}
      ]}
   ]
 
@@ -60,7 +65,11 @@ config :egregor, :models,
   convergent: "google/gemini-2.0-flash-lite-001",
   narrator: "anthropic/claude-sonnet-4-5",
   scribe: "openai/whisper-large-v3",
-  filament_namer: "google/gemini-2.0-flash-lite-001"
+  filament_namer: "google/gemini-2.0-flash-lite-001",
+  # Reflections (agent's private memory). Pulse runs ~every 4h → cheap model.
+  # Consolidation runs once nightly and shapes the Oracle's voice → better model.
+  reflector_pulse: "google/gemini-2.0-flash-lite-001",
+  reflector_consolidation: "anthropic/claude-sonnet-4-5"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

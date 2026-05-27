@@ -2,7 +2,13 @@ defmodule Egregor.Entries do
   import Ecto.Query
   alias Egregor.Repo
   alias Egregor.Entries.Entry
-  alias Egregor.Jobs.{GenerateEmbeddingJob, CategorizeEntryJob, GenerateSigilJob, CheckMilestonesJob}
+
+  alias Egregor.Jobs.{
+    GenerateEmbeddingJob,
+    CategorizeEntryJob,
+    GenerateSigilJob,
+    CheckMilestonesJob
+  }
 
   def list_entries(opts \\ []) do
     base = from(e in Entry, order_by: [desc: e.inserted_at])
@@ -19,6 +25,14 @@ defmodule Egregor.Entries do
     Entry
     |> order_by([e], desc: e.inserted_at)
     |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc "Entries created strictly after `datetime`, oldest first (heartbeat window)."
+  def list_since(datetime) do
+    Entry
+    |> where([e], e.inserted_at > ^datetime)
+    |> order_by([e], asc: e.inserted_at)
     |> Repo.all()
   end
 

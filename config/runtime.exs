@@ -22,8 +22,12 @@ end
 
 bind_ip =
   case System.get_env("PHX_BIND_IP", "127.0.0.1") do
-    "0.0.0.0" -> {0, 0, 0, 0}
-    "127.0.0.1" -> {127, 0, 0, 1}
+    "0.0.0.0" ->
+      {0, 0, 0, 0}
+
+    "127.0.0.1" ->
+      {127, 0, 0, 1}
+
     other ->
       other
       |> String.split(".")
@@ -38,8 +42,7 @@ config :egregor, EgregorWeb.Endpoint,
 config :egregor, :user_name, System.get_env("USER_NAME", "você")
 
 # Local timezone offset in hours (default -3 for America/Sao_Paulo / BRT)
-config :egregor, :tz_offset_hours,
-  String.to_integer(System.get_env("TZ_OFFSET_HOURS", "-3"))
+config :egregor, :tz_offset_hours, String.to_integer(System.get_env("TZ_OFFSET_HOURS", "-3"))
 
 # OpenRouter configuration (required in all envs when running)
 if openrouter_key = System.get_env("OPENROUTER_API_KEY") do
@@ -57,7 +60,10 @@ config :egregor, :models,
   convergent: System.get_env("CONVERGENT_MODEL", "google/gemini-2.0-flash-lite-001"),
   narrator: System.get_env("NARRATOR_MODEL", "anthropic/claude-sonnet-4-5"),
   scribe: System.get_env("SCRIBE_MODEL", "openai/whisper-large-v3"),
-  filament_namer: System.get_env("FILAMENT_NAMER_MODEL", "google/gemini-2.0-flash-lite-001")
+  filament_namer: System.get_env("FILAMENT_NAMER_MODEL", "google/gemini-2.0-flash-lite-001"),
+  reflector_pulse: System.get_env("REFLECTOR_PULSE_MODEL", "google/gemini-2.0-flash-lite-001"),
+  reflector_consolidation:
+    System.get_env("REFLECTOR_CONSOLIDATION_MODEL", "anthropic/claude-sonnet-4-5")
 
 # DATABASE_URL overrides dev.exs when running in Docker or any env that sets it
 if database_url = System.get_env("DATABASE_URL") do
