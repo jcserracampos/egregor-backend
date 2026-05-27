@@ -55,6 +55,9 @@ defmodule EgregorWeb.Router do
 
     # Milestones
     get "/milestones", MilestoneController, :index
+
+    # Reflections — read-only window into the agent's private memory (debug)
+    get "/reflections", ReflectionController, :index
   end
 
   # Web interface — public (login)
