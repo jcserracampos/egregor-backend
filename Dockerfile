@@ -36,6 +36,7 @@ FROM debian:bookworm-slim AS app
 
 RUN apt-get update -q && apt-get install -y --no-install-recommends \
     libssl3 libncurses6 libstdc++6 curl postgresql-client ca-certificates \
+    && apt-get install -y --only-upgrade ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
